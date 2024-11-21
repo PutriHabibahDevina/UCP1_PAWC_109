@@ -1,0 +1,123 @@
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // Function to update the employee table
+        function updateTable(todos) {
+            const todoTable = $('#todoTable');
+            todoTable.empty(); // Clear the table before updating
+            todos.forEach((todo, index) => {
+                const row = `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${todo.nama}</td>
+                        <td>${todo.jenisKelamin}</td>
+                        <td>${todo.noTelepon}</td>
+                        <td>${todo.alamat}</td>
+                        <td>${todo.jabatan}</td>
+                        <td>
+                            <button class="btn btn-sm btn-success mr-2 editBtn" data-id="${todo.id}">Edit</button>
+                            <button class="btn btn-sm btn-danger deleteBtn" data-id="${todo.id}">Delete</button>
+                        </td>
+                    </tr>
+                `;
+                todoTable.append(row);
+            });
+        }
+
+        // Fetch existing todos on page load
+        $.get('/todos', function(todos) {
+            updateTable(todos);
+        });
+
+        // Add new employee (todo)
+        $('#addTodoForm').on('submit', function (e) {
+            e.preventDefault();
+
+            // Collect form data
+            const newNama = $('#newNama').val().trim();
+            const newJenisKelamin = $('input[name="jenisKelamin"]:checked').val(); // Get selected gender
+            const newNoTelepon = $('#newNoTelepon').val().trim();
+            const newAlamat = $('#newAlamat').val().trim();
+            const newJabatan = $('#newJabatan').val().trim();
+
+            if (newNama && newJenisKelamin && newNoTelepon && newAlamat && newJabatan) {
+                // Send AJAX request to server to save the new todo
+                $.ajax({
+                    url: '/todos/add',
+                    method: 'POST',
+                    data: {
+                        nama: newNama,
+                        jenisKelamin: newJenisKelamin,
+                        noTelepon: newNoTelepon,
+                        alamat: newAlamat,
+                        jabatan: newJabatan
+                    },
+                    success: function(response) {
+                        // On success, close the modal and update the table
+                        $('#addModal').modal('hide');
+                        $('#addTodoForm')[0].reset();
+                        updateTable(response.todos); // Update table with the new data
+                    },
+                    error: function(err) {
+                        console.error('Error saving todo:', err);
+                    }
+                });
+            }
+        });
+
+        // Delete employee
+        $(document).on('click', '.deleteBtn', function () {
+            const id = $(this).data('id');
+            $.ajax({
+                url: '/todos/delete/' + id,
+                method: 'DELETE',
+                success: function(response) {
+                    updateTable(response.todos);
+                },
+                error: function(err) {
+                    console.error('Error deleting todo:', err);
+                }
+            });
+        });
+
+        // Edit employee (open modal)
+        $(document).on('click', '.editBtn', function () {
+            const id = $(this).data('id');
+            $.get('/todos/' + id, function(todo) {
+                // Populate the form with existing data
+                $('#newNama').val(todo.nama);
+                $('input[name="jenisKelamin"][value="' + todo.jenisKelamin + '"]').prop('checked', true);
+                $('#newNoTelepon').val(todo.noTelepon);
+                $('#newAlamat').val(todo.alamat);
+                $('#newJabatan').val(todo.jabatan);
+
+                // Change form action to update the existing todo
+                $('#addModal').modal('show');
+                $('#addTodoForm').off('submit').on('submit', function (e) {
+                    e.preventDefault();
+
+                    // Update todo
+                    $.ajax({
+                        url: '/todos/update/' + id,
+                        method: 'PUT',
+                        data: {
+                            nama: $('#newNama').val().trim(),
+                            jenisKelamin: $('input[name="jenisKelamin"]:checked').val(),
+                            noTelepon: $('#newNoTelepon').val().trim(),
+                            alamat: $('#newAlamat').val().trim(),
+                            jabatan: $('#newJabatan').val().trim()
+                        },
+                        success: function(response) {
+                            $('#addModal').modal('hide');
+                            updateTable(response.todos); // Update table
+                            $('#addTodoForm')[0].reset(); // Clear form fields
+                        },
+                        error: function(err) {
+                            console.error('Error updating todo:', err);
+                        }
+                    });
+                });
+            });
+        });
+    });
+</script>
